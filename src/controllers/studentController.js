@@ -10,8 +10,24 @@ export async function getStudents(req, res) {
   const filter = {};
   if (department) filter.department = department;
   if (semester) filter.semester = Number(semester);
-  const students = await Student.find(filter).sort({ createdAt: -1 });
-  res.json({ success: true, count: students.length, data: students });
+
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const skip = (page - 1) * limit;
+
+  const [students, total] = await Promise.all([
+    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Student.countDocuments(filter)
+  ]);
+
+  res.json({
+    success: true,
+    count: students.length,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit) || 1,
+    data: students
+  });
 }
 
 export async function getStudent(req, res) {
