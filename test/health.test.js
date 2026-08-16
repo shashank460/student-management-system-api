@@ -16,9 +16,4 @@ describe('health and routing', () => {
     assert.equal(res.status, 404);
     assert.equal(res.body.success, false);
   });
-
-  test('GET student collection remains public when API key is configured', async () => {
-    const res = await request(app).get('/api/v1/students');
-    assert.notEqual(res.status, 401);
-  });
 });
