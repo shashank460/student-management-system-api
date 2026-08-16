@@ -1,0 +1,14 @@
+{
+  "info": {
+    "name": "Student Management System API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{"key": "baseUrl", "value": "http://localhost:5000/api/v1"}],
+  "item": [
+    {"name": "Health", "request": {"method": "GET", "url": "http://localhost:5000/health"}},
+    {"name": "Create Student", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"studentId\": \"REC-CSE-001\",\n  \"name\": \"Aarav Sharma\",\n  \"email\": \"aarav@example.com\",\n  \"department\": \"Computer Science and Engineering\",\n  \"semester\": 6,\n  \"phone\": \"9876543210\",\n  \"enrollmentYear\": 2023\n}"}, "url": "{{baseUrl}}/students"}},
+    {"name": "List Students", "request": {"method": "GET", "url": "{{baseUrl}}/students"}},
+    {"name": "Create Attendance", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"student\": \"PUT_STUDENT_OBJECT_ID_HERE\",\n  \"date\": \"2026-08-16\",\n  \"status\": \"present\"\n}"}, "url": "{{baseUrl}}/attendance"}},
+    {"name": "Create Academic Record", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"student\": \"PUT_STUDENT_OBJECT_ID_HERE\",\n  \"semester\": 6,\n  \"subjects\": [{\"name\": \"DBMS\", \"marks\": 86, \"grade\": \"A\"}],\n  \"sgpa\": 8.4\n}"}, "url": "{{baseUrl}}/academics"}}
+  ]
+}
