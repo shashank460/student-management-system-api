@@ -21,5 +21,5 @@ jobs:
         run: npm install
       - name: Syntax check
         run: node --check src/server.js
-      - name: Verify application files
-        run: test -f src/app.js && test -f src/models/Student.js && test -f Dockerfile
+      - name: Run tests
+        run: npm test
