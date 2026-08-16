@@ -24,7 +24,7 @@ app.use(cors({ origin: env.corsOrigin === '*' ? true : env.corsOrigin }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
-app.get('/health', (req, res) => res.json({ success: true, service: 'student-management-system-api', status: 'healthy' }));
+app.get('/health', (_req, res) => res.json({ success: true, service: 'student-management-system-api', status: 'healthy' }));
 app.use('/api/v1', apiLimiter);
 app.use('/api/v1', requireApiKey);
 app.use('/api/v1/students', studentRoutes);
