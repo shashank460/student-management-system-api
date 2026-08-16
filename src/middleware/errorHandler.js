@@ -2,7 +2,7 @@ export function notFound(req, res) {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.originalUrl} not found` });
 }
 
-export function errorHandler(err, req, res, next) {
+export function errorHandler(err, req, res, _next) {
   console.error(err);
   if (err.code === 11000) {
     const field = Object.keys(err.keyPattern || {})[0] || 'field';
