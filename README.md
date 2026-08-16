@@ -1,6 +1,6 @@
 # Student Management System API
 
-A production-style REST API for managing student registration, attendance and academic records.
+A secure REST API for managing student registration, attendance and academic records.
 
 ## Tech stack
 - Node.js 20+
@@ -9,7 +9,10 @@ A production-style REST API for managing student registration, attendance and ac
 - RESTful API
 - MVC architecture
 - Environment-based configuration
+- API-key authentication
 - Helmet, CORS and centralized error handling
+- Automated tests with Node.js `node:test` + Supertest
+- Docker and GitHub Actions CI
 - AWS-ready deployment
 
 ## Features
@@ -19,7 +22,9 @@ A production-style REST API for managing student registration, attendance and ac
 - Academic records with subjects, marks, grades and SGPA
 - MongoDB relationships through ObjectId references
 - Duplicate protection and validation
+- API-key protection for `/api/v1/*`
 - Health endpoint for deployment monitoring
+- Automated endpoint/error-handling tests
 - Consistent JSON responses and centralized errors
 
 ## Structure
@@ -27,22 +32,32 @@ A production-style REST API for managing student registration, attendance and ac
 src/
 ├── config/          # environment and database configuration
 ├── controllers/     # business logic
-├── middleware/      # centralized error handling
+├── middleware/      # authentication and error handling
 ├── models/          # Mongoose schemas
 ├── routes/          # REST endpoints
-├── app.js
-└── server.js
+test/
+└── app.test.js      # API tests
 ```
 
 ## Run locally
 ```bash
 npm install
 cp .env.example .env
-# Configure MONGODB_URI in .env
+# Configure MONGODB_URI and API_KEY in .env
+npm test
 npm start
 ```
 
 API runs on `http://localhost:5000` by default.
+
+## Authentication
+All application endpoints under `/api/v1/*` require the `x-api-key` header.
+
+```text
+x-api-key: your-secret-api-key
+```
+
+The `/health` endpoint remains public so load balancers and deployment monitors can check service health. Never commit `.env` or real credentials.
 
 ## Endpoints
 ### Students
@@ -85,7 +100,7 @@ API runs on `http://localhost:5000` by default.
 ## AWS deployment
 The application is AWS-ready for deployment on an EC2 Linux instance with MongoDB Atlas as the managed database. Set production environment variables on the server, install Node.js 20+, run `npm ci`, and start with a process manager such as PM2. Nginx can sit in front as a reverse proxy with TLS.
 
-Never commit `.env` or database credentials. GitHub Actions can run automated checks and deploy to EC2 using repository secrets.
+GitHub Actions runs the automated test suite on pushes and pull requests to `main`.
 
 ## Resume relevance
-Demonstrates REST API development, MVC architecture, MongoDB data modeling, environment-based configuration, validation/error handling and cloud deployment readiness using the technologies listed on the resume.
+Demonstrates REST API development, MVC architecture, MongoDB data modeling, API authentication, automated testing, environment-based configuration, validation/error handling and cloud deployment readiness using the technologies listed on the resume.
