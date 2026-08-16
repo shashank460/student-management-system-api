@@ -18,8 +18,10 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install dependencies
-        run: npm install
-      - name: Syntax check
-        run: node --check src/server.js
+        run: npm ci
+      - name: Lint
+        run: npm run lint
       - name: Run tests
         run: npm test
+      - name: Build Docker image
+        run: docker build -t student-management-system-api:ci .
