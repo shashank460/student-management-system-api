@@ -1,7 +1,7 @@
 {
   "name": "student-management-system-api",
   "version": "1.0.0",
-  "description": "Production-style REST API for student registration, attendance and academic records.",
+  "description": "REST API for student registration, attendance and academic records.",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -16,7 +16,8 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "mongoose": "^8.18.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "supertest": "^7.1.4"
   },
   "devDependencies": {
     "eslint": "^9.34.0"
