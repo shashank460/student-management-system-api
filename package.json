@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "MONGODB_URI=mongodb://localhost:27017/test-placeholder node --test",
+    "test": "node --test",
     "lint": "eslint ."
   },
   "dependencies": {
