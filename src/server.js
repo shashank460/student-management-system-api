@@ -1,20 +1,11 @@
 import express from 'express';
 import app from './app.js';
 import env from './config/env.js';
-import { connectDatabase, isDatabaseHealthy } from './config/database.js';
+import { connectDatabase } from './config/database.js';
+import { healthCheck } from './middleware/healthCheck.js';
 
 const serverApp = express();
-
-serverApp.get('/health', (_req, res) => {
-  const databaseHealthy = isDatabaseHealthy();
-  res.status(databaseHealthy ? 200 : 503).json({
-    success: databaseHealthy,
-    service: 'student-management-system-api',
-    status: databaseHealthy ? 'healthy' : 'unhealthy',
-    database: databaseHealthy ? 'connected' : 'disconnected'
-  });
-});
-
+serverApp.get('/health', healthCheck);
 serverApp.use(app);
 
 async function startServer() {
