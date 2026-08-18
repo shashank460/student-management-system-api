@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import express from 'express';
 import request from 'supertest';
 
 process.env.NODE_ENV = 'test';
@@ -7,12 +8,22 @@ process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/
 process.env.API_KEY = process.env.API_KEY || 'test-key';
 
 const { default: app } = await import('../src/app.js');
+const { healthCheck } = await import('../src/middleware/healthCheck.js');
 const auth = { 'x-api-key': 'test-key' };
 
-test('GET /health reports database state', async () => {
-  const res = await request(app).get('/health');
+test('database-aware health check reports connected or disconnected state', async () => {
+  const healthApp = express();
+  healthApp.get('/health', healthCheck);
+  const res = await request(healthApp).get('/health');
   assert.ok([200, 503].includes(res.status));
   assert.equal(typeof res.body.database, 'string');
+  assert.equal(typeof res.body.status, 'string');
+});
+
+test('GET /health remains available from the application', async () => {
+  const res = await request(app).get('/health');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.success, true);
 });
 
 test('GET /unknown returns 404 JSON', async () => {
