@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
-import app from '../src/app.js';
 
-const auth = { 'x-api-key': 'test-key' };
-
+process.env.NODE_ENV = 'test';
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/student_management_test';
 process.env.API_KEY = process.env.API_KEY || 'test-key';
+
+const { default: app } = await import('../src/app.js');
+const auth = { 'x-api-key': 'test-key' };
 
 test('GET /health reports database state', async () => {
   const res = await request(app).get('/health');
