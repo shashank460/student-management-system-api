@@ -1,29 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import express from 'express';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
+import app from '../src/app.js';
+import env from '../src/config/env.js';
 
-process.env.NODE_ENV = 'test';
-process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/student_management_test';
-process.env.API_KEY = process.env.API_KEY || 'test-key';
+const teacherToken = jwt.sign({ sub: '507f1f77bcf86cd799439011', role: 'teacher', email: 'teacher@example.com' }, env.jwtSecret);
+const adminToken = jwt.sign({ sub: '507f1f77bcf86cd799439012', role: 'admin', email: 'admin@example.com' }, env.jwtSecret);
 
-const { default: app } = await import('../src/app.js');
-const { healthCheck } = await import('../src/middleware/healthCheck.js');
-const auth = { 'x-api-key': 'test-key' };
-
-test('database-aware health check reports connected or disconnected state', async () => {
-  const healthApp = express();
-  healthApp.get('/health', healthCheck);
-  const res = await request(healthApp).get('/health');
+test('GET /health returns database-aware status', async () => {
+  const res = await request(app).get('/health');
   assert.ok([200, 503].includes(res.status));
   assert.equal(typeof res.body.database, 'string');
-  assert.equal(typeof res.body.status, 'string');
+  assert.ok(res.headers['x-request-id']);
 });
 
-test('GET /health remains available from the application', async () => {
-  const res = await request(app).get('/health');
+test('GET /api-docs.json serves OpenAPI documentation', async () => {
+  const res = await request(app).get('/api-docs.json');
   assert.equal(res.status, 200);
-  assert.equal(res.body.success, true);
+  assert.equal(res.body.openapi, '3.0.3');
+  assert.ok(res.body.paths['/api/v1/auth/login']);
+});
+
+test('GET /api-docs serves Swagger UI', async () => {
+  const res = await request(app).get('/api-docs/');
+  assert.equal(res.status, 200);
+  assert.match(res.text, /swagger/i);
 });
 
 test('GET /unknown returns 404 JSON', async () => {
@@ -32,45 +34,37 @@ test('GET /unknown returns 404 JSON', async () => {
   assert.equal(res.body.success, false);
 });
 
-test('API GET endpoints require an API key', async () => {
-  const res = await request(app).get('/api/v1/students');
-  assert.equal(res.status, 401);
-  assert.equal(res.body.message, 'Missing or invalid API key');
-});
-
-test('API GET endpoint accepts a valid API key', async () => {
-  const res = await request(app).get('/api/v1/students').set(auth);
-  assert.ok([200, 500].includes(res.status));
-  assert.equal(typeof res.body, 'object');
-});
-
-test('POST /students rejects requests without authentication', async () => {
+test('POST /students rejects requests without JWT authentication', async () => {
   const res = await request(app).post('/api/v1/students').send({ name: 'Test Student' });
   assert.equal(res.status, 401);
 });
 
-test('POST /students reaches validation with a valid API key', async () => {
+test('POST /students reaches strict Zod validation with a valid JWT', async () => {
   const res = await request(app)
     .post('/api/v1/students')
-    .set(auth)
-    .send({ name: 'Test Student' });
-  assert.ok([400, 500].includes(res.status));
+    .set('Authorization', `Bearer ${teacherToken}`)
+    .send({ name: 'Test Student', unexpected: true });
+  assert.equal(res.status, 400);
   assert.equal(res.body.success, false);
+  assert.equal(res.body.message, 'Request validation failed');
 });
 
-test('PATCH /students/:id rejects invalid MongoDB id after authentication', async () => {
-  const res = await request(app)
-    .patch('/api/v1/students/not-an-object-id')
-    .set(auth)
-    .send({ name: 'Updated' });
+test('GET students rejects unknown query parameters', async () => {
+  const res = await request(app).get('/api/v1/students?unknown=value');
   assert.equal(res.status, 400);
-  assert.equal(res.body.message, 'Invalid resource ID');
+  assert.equal(res.body.message, 'Request validation failed');
 });
 
-test('DELETE /students/:id rejects invalid MongoDB id after authentication', async () => {
+test('DELETE student requires an admin JWT', async () => {
   const res = await request(app)
-    .delete('/api/v1/students/not-an-object-id')
-    .set(auth);
-  assert.equal(res.status, 400);
-  assert.equal(res.body.message, 'Invalid resource ID');
+    .delete('/api/v1/students/507f1f77bcf86cd799439011')
+    .set('Authorization', `Bearer ${teacherToken}`);
+  assert.equal(res.status, 403);
+});
+
+test('DELETE student accepts an admin JWT before resource lookup', async () => {
+  const res = await request(app)
+    .delete('/api/v1/students/507f1f77bcf86cd799439011')
+    .set('Authorization', `Bearer ${adminToken}`);
+  assert.ok([404, 500].includes(res.status));
 });
