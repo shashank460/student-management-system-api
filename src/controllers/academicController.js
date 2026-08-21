@@ -1,7 +1,7 @@
 import AcademicRecord from '../models/AcademicRecord.js';
 import Student from '../models/Student.js';
 
-const UPDATABLE_FIELDS = ['semester', 'subjects', 'sgpa'];
+const UPDATABLE_FIELDS = ['semester', 'subjects'];
 
 function pickFields(body, fields) {
   return Object.fromEntries(Object.entries(body).filter(([key]) => fields.includes(key)));
@@ -22,9 +22,11 @@ export async function getAcademicRecords(req, res) {
 }
 
 export async function updateAcademicRecord(req, res) {
-  const updates = pickFields(req.body, UPDATABLE_FIELDS);
-  const record = await AcademicRecord.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+  const record = await AcademicRecord.findById(req.params.id);
   if (!record) return res.status(404).json({ success: false, message: 'Academic record not found' });
+
+  Object.assign(record, pickFields(req.body, UPDATABLE_FIELDS));
+  await record.save();
   res.json({ success: true, data: record });
 }
 
