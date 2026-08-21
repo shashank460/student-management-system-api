@@ -1,57 +1,40 @@
-import { test, describe, mock, afterEach } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
+import jwt from 'jsonwebtoken';
+import { authenticate, authorize } from '../src/middleware/auth.js';
 import env from '../src/config/env.js';
-import { requireApiKey } from '../src/middleware/apiKeyAuth.js';
 
-describe('requireApiKey middleware', () => {
-  const originalKey = env.apiKey;
+test('authenticate rejects missing bearer token', () => {
+  const req = { get: () => undefined };
+  let status;
+  let body;
+  const res = { status(code) { status = code; return this; }, json(value) { body = value; } };
+  authenticate(req, res, () => {});
+  assert.equal(status, 401);
+  assert.equal(body.success, false);
+});
 
-  afterEach(() => { env.apiKey = originalKey; });
+test('authenticate accepts a valid JWT and exposes user claims', () => {
+  const token = jwt.sign({ sub: '507f1f77bcf86cd799439011', role: 'teacher', email: 'teacher@example.com' }, env.jwtSecret);
+  const req = { get: (name) => name === 'authorization' ? `Bearer ${token}` : undefined };
+  const res = { status() { return this; }, json() {} };
+  let called = false;
+  authenticate(req, res, () => { called = true; });
+  assert.equal(called, true);
+  assert.equal(req.user.role, 'teacher');
+});
 
-  test('allows GET requests without a key', () => {
-    env.apiKey = 'secret123';
-    const req = { method: 'GET', get: () => undefined };
-    const res = { status: mock.fn(() => res), json: mock.fn() };
-    const next = mock.fn();
-    requireApiKey(req, res, next);
-    assert.equal(next.mock.calls.length, 1);
-    assert.equal(res.status.mock.calls.length, 0);
-  });
+test('authorize rejects teachers from admin-only actions', () => {
+  const req = { user: { role: 'teacher' } };
+  let status;
+  const res = { status(code) { status = code; return this; }, json() {} };
+  authorize('admin')(req, res, () => {});
+  assert.equal(status, 403);
+});
 
-  test('blocks POST requests missing the key', () => {
-    env.apiKey = 'secret123';
-    const req = { method: 'POST', get: () => undefined };
-    const res = { status: mock.fn(() => res), json: mock.fn() };
-    const next = mock.fn();
-    requireApiKey(req, res, next);
-    assert.equal(res.status.mock.calls[0].arguments[0], 401);
-    assert.equal(next.mock.calls.length, 0);
-  });
-
-  test('blocks POST requests with the wrong key', () => {
-    env.apiKey = 'secret123';
-    const req = { method: 'POST', get: () => 'wrong-key' };
-    const res = { status: mock.fn(() => res), json: mock.fn() };
-    const next = mock.fn();
-    requireApiKey(req, res, next);
-    assert.equal(res.status.mock.calls[0].arguments[0], 401);
-  });
-
-  test('allows POST requests with the correct key', () => {
-    env.apiKey = 'secret123';
-    const req = { method: 'POST', get: () => 'secret123' };
-    const res = { status: mock.fn(() => res), json: mock.fn() };
-    const next = mock.fn();
-    requireApiKey(req, res, next);
-    assert.equal(next.mock.calls.length, 1);
-  });
-
-  test('skips enforcement when no API key is configured', () => {
-    env.apiKey = '';
-    const req = { method: 'DELETE', get: () => undefined };
-    const res = { status: mock.fn(() => res), json: mock.fn() };
-    const next = mock.fn();
-    requireApiKey(req, res, next);
-    assert.equal(next.mock.calls.length, 1);
-  });
+test('authorize allows admins', () => {
+  const req = { user: { role: 'admin' } };
+  let called = false;
+  authorize('admin')(req, {}, () => { called = true; });
+  assert.equal(called, true);
 });
