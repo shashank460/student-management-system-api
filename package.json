@@ -1,23 +1,28 @@
 {
   "name": "student-management-system-api",
-  "version": "1.0.0",
-  "description": "REST API for student registration, attendance and academic records.",
+  "version": "2.0.0",
+  "description": "Secure REST API for student registration, attendance and academic records.",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test",
+    "test": "NODE_ENV=test node --test",
     "lint": "eslint ."
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "express-rate-limit": "^8.6.2",
     "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.0",
-    "morgan": "^1.10.0"
+    "pino": "^9.9.4",
+    "pino-http": "^10.5.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
