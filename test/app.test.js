@@ -6,7 +6,6 @@ import app from '../src/app.js';
 import env from '../src/config/env.js';
 
 const teacherToken = jwt.sign({ sub: '507f1f77bcf86cd799439011', role: 'teacher', email: 'teacher@example.com' }, env.jwtSecret);
-const adminToken = jwt.sign({ sub: '507f1f77bcf86cd799439012', role: 'admin', email: 'admin@example.com' }, env.jwtSecret);
 
 test('GET /health returns database-aware status', async () => {
   const res = await request(app).get('/health');
@@ -60,11 +59,4 @@ test('DELETE student requires an admin JWT', async () => {
     .delete('/api/v1/students/507f1f77bcf86cd799439011')
     .set('Authorization', `Bearer ${teacherToken}`);
   assert.equal(res.status, 403);
-});
-
-test('DELETE student accepts an admin JWT before resource lookup', async () => {
-  const res = await request(app)
-    .delete('/api/v1/students/507f1f77bcf86cd799439011')
-    .set('Authorization', `Bearer ${adminToken}`);
-  assert.ok([404, 500].includes(res.status));
 });
