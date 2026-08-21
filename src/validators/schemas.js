@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid MongoDB ObjectId');
 const email = z.string().email().max(254).transform((value) => value.toLowerCase());
+export const emptyQuerySchema = z.object({}).strict();
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -22,7 +23,6 @@ export const studentCreateSchema = z.object({
 }).strict();
 
 export const studentUpdateSchema = studentCreateSchema.partial().omit({ studentId: true }).strict();
-
 export const studentIdParamSchema = z.object({ id: objectId }).strict();
 export const studentSummaryParamSchema = z.object({ id: objectId }).strict();
 
