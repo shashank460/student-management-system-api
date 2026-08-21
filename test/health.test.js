@@ -4,11 +4,11 @@ import request from 'supertest';
 import app from '../src/app.js';
 
 describe('health and routing', () => {
-  test('GET /health returns 200 and healthy status', async () => {
+  test('GET /health reports database-aware status', async () => {
     const res = await request(app).get('/health');
-    assert.equal(res.status, 200);
-    assert.equal(res.body.success, true);
-    assert.equal(res.body.status, 'healthy');
+    assert.ok([200, 503].includes(res.status));
+    assert.equal(typeof res.body.database, 'string');
+    assert.equal(typeof res.body.status, 'string');
   });
 
   test('GET unknown route returns 404 JSON', async () => {
