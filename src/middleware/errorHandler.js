@@ -1,9 +1,11 @@
+import logger from '../config/logger.js';
+
 export function notFound(req, res) {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.originalUrl} not found` });
 }
 
 export function errorHandler(err, req, res, _next) {
-  console.error(err);
+  logger.error({ err, requestId: req.id }, 'Unhandled request error');
   if (err.code === 11000) {
     const field = Object.keys(err.keyPattern || {})[0] || 'field';
     return res.status(409).json({ success: false, message: `${field} already exists` });
