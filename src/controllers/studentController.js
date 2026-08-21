@@ -14,13 +14,10 @@ export async function createStudent(req, res) {
 }
 
 export async function getStudents(req, res) {
-  const { department, semester } = req.query;
+  const { department, semester, page, limit } = req.query;
   const filter = {};
   if (department) filter.department = department;
-  if (semester) filter.semester = Number(semester);
-
-  const page = Math.max(Number(req.query.page) || 1, 1);
-  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  if (semester) filter.semester = semester;
   const skip = (page - 1) * limit;
 
   const [students, total] = await Promise.all([
@@ -54,4 +51,32 @@ export async function deleteStudent(req, res) {
   ]);
 
   res.status(204).send();
+}
+
+export async function getAttendanceSummary(req, res) {
+  const student = await Student.exists({ _id: req.params.id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  const rows = await Attendance.aggregate([
+    { $match: { student: student._id } },
+    { $group: { _id: '$status', count: { $sum: 1 } } }
+  ]);
+  const counts = { present: 0, absent: 0, late: 0 };
+  for (const row of rows) counts[row._id] = row.count;
+  const total = counts.present + counts.absent + counts.late;
+  const attendancePercentage = total ? Number((((counts.present + counts.late) / total) * 100).toFixed(2)) : 0;
+
+  res.json({ success: true, data: { total, ...counts, attendancePercentage } });
+}
+
+export async function getAcademicSummary(req, res) {
+  const student = await Student.exists({ _id: req.params.id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  const records = await AcademicRecord.find({ student: student._id }).sort({ semester: 1 }).select('semester sgpa subjects');
+  const overallSgpa = records.length
+    ? Number((records.reduce((sum, record) => sum + record.sgpa, 0) / records.length).toFixed(2))
+    : 0;
+
+  res.json({ success: true, data: { semesters: records.length, overallSgpa, records } });
 }
