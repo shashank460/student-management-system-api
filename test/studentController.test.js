@@ -1,6 +1,8 @@
 import { test, describe, mock, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import Student from '../src/models/Student.js';
+import Attendance from '../src/models/Attendance.js';
+import AcademicRecord from '../src/models/AcademicRecord.js';
 import { createStudent, getStudents, getStudent, updateStudent, deleteStudent } from '../src/controllers/studentController.js';
 
 function mockRes() {
@@ -69,10 +71,11 @@ describe('studentController', () => {
 
   test('updateStudent returns updated student', async () => {
     const student = { _id: '1', name: 'Updated' };
-    mock.method(Student, 'findByIdAndUpdate', async () => student);
+    const update = mock.method(Student, 'findByIdAndUpdate', async () => student);
     const res = mockRes();
-    await updateStudent({ params: { id: '1' }, body: { name: 'Updated' } }, res);
+    await updateStudent({ params: { id: '1' }, body: { name: 'Updated', studentId: 'MUST-NOT-CHANGE' } }, res);
     assert.deepEqual(res.body.data, student);
+    assert.deepEqual(update.mock.calls[0].arguments[1], { name: 'Updated' });
   });
 
   test('updateStudent returns 404 when missing', async () => {
@@ -82,11 +85,14 @@ describe('studentController', () => {
     assert.equal(res.statusCode, 404);
   });
 
-  test('deleteStudent returns 204 on success', async () => {
+  test('deleteStudent cascades attendance and academic records', async () => {
     mock.method(Student, 'findByIdAndDelete', async () => ({ _id: '1' }));
+    const attendanceDelete = mock.method(Attendance, 'deleteMany', async () => ({ deletedCount: 2 }));
+    const academicDelete = mock.method(AcademicRecord, 'deleteMany', async () => ({ deletedCount: 1 }));
     const res = mockRes();
     await deleteStudent({ params: { id: '1' } }, res);
     assert.equal(res.statusCode, 204);
-    assert.equal(res.send.mock.calls.length, 1);
+    assert.equal(attendanceDelete.mock.calls[0].arguments[0].student, '1');
+    assert.equal(academicDelete.mock.calls[0].arguments[0].student, '1');
   });
 });
