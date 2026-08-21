@@ -1,56 +1,67 @@
 # Student Management System API
 
-A portfolio-grade REST API for managing student registration, attendance and academic records, built with Node.js, Express and MongoDB.
+A secure, portfolio-grade REST API for student registration, attendance and academic records, built with Node.js, Express and MongoDB.
 
 ## Tech stack
 - Node.js 20+
 - Express.js 5
 - MongoDB + Mongoose
 - RESTful API + MVC architecture
-- Environment-based configuration
-- Shared API-key authentication
+- JWT authentication + role-based authorization (`admin`, `teacher`)
+- bcrypt password hashing
+- Zod request validation with strict schemas
+- Pino + pino-http structured logging and request tracing
+- OpenAPI 3.0 + Swagger UI
 - Helmet, CORS and rate limiting
-- Centralized error handling
-- Automated tests with Node.js `node:test` + Supertest
 - Docker and GitHub Actions CI
 - AWS-ready deployment
 
 ## Features
-- Student registration and profile management
-- Filtering and pagination by department and semester
-- Attendance records with present/absent/late status
-- Academic records with subjects, marks, grades and SGPA
-- Referential-integrity checks before creating attendance/academic records
+- Teacher registration and JWT login
+- Admin-only destructive operations
+- Student registration, profile management, filtering and pagination
+- Strict body, query and path validation with unknown-field rejection
+- Attendance records with referential-integrity checks
+- Daily attendance uniqueness through UTC-midnight normalization
+- Academic records with automatic grade and SGPA calculation from marks
+- Attendance and academic summary analytics per student
 - Cascade cleanup of attendance and academic records when a student is deleted
-- Allow-listed update fields to prevent mass assignment
-- Attendance dates normalized to UTC midnight for reliable daily uniqueness
-- Duplicate protection and Mongoose validation
-- API-key protection for every `/api/v1/*` endpoint
-- Rate limiting on `/api/v1`
-- Database-aware health endpoint returning `503` when MongoDB is disconnected
-- Automated unit and integration tests
-- Consistent JSON responses and centralized errors
+- Database-aware health endpoint
+- Correlation IDs via `x-request-id`
+- Graceful SIGTERM/SIGINT shutdown with MongoDB disconnect
+- Interactive API documentation at `/api-docs`
+- JSON OpenAPI spec at `/api-docs.json`
+- Automated tests with Node.js `node:test` + Supertest
 
-## Scope
-This is a learning/portfolio project, not a hardened production service. Authentication is a lightweight shared API key rather than user accounts, roles, OAuth or JWT. It demonstrates backend engineering practices without overstating production readiness.
+## Security model
+- `POST /api/v1/*` and all `PATCH`/`DELETE` operations require `Authorization: Bearer <JWT>`.
+- `DELETE` operations require the `admin` role.
+- GET endpoints are intentionally public for this portfolio project; production deployments should protect PII-bearing reads with authorization as well.
+- Passwords are never stored in plaintext.
+- Zod schemas reject unknown request fields before controllers run, preventing accidental mass assignment.
+- `JWT_SECRET` is mandatory and must be at least 32 characters in production.
 
-## Structure
+## Project structure
 ```text
 src/
-├── config/          # environment and database configuration
-├── controllers/     # business logic and allow-listed updates
-├── middleware/      # authentication, health, rate limiting and errors
-├── models/          # Mongoose schemas
+├── config/          # environment, database and logging
+├── controllers/     # business logic
+├── docs/            # OpenAPI specification
+├── middleware/      # auth, validation, tracing, health and errors
+├── models/          # User, Student, Attendance and AcademicRecord
 ├── routes/          # REST endpoints
-test/
-└── app.test.js      # API and middleware tests
+├── scripts/         # admin bootstrap utility
+├── validators/      # strict Zod schemas
+└── server.js        # startup and graceful shutdown
+
+test/                # unit and integration tests
 ```
 
 ## Run locally
 ```bash
 npm install
 cp .env.example .env
-# Configure MONGODB_URI and API_KEY in .env
+# Configure MONGODB_URI and JWT_SECRET in .env
 npm test
 npm run lint
 npm start
@@ -59,58 +70,94 @@ npm start
 API runs on `http://localhost:5000` by default.
 
 ## Authentication
-Every endpoint under `/api/v1` requires an `x-api-key` header.
+Register a teacher:
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
 
+{
+  "name": "Aarav Sharma",
+  "email": "aarav@example.com",
+  "password": "strong-password-123"
+}
+```
+
+Login:
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "aarav@example.com",
+  "password": "strong-password-123"
+}
+```
+
+Use the returned token for protected writes:
 ```text
-x-api-key: your-secret-api-key
+Authorization: Bearer <jwt>
 ```
 
-The `/health` endpoint is public so load balancers and deployment monitors can check service health. In production, `API_KEY` is mandatory and the application fails during startup if it is missing. Never commit `.env` or real credentials.
-
-## Docker Compose
-Docker Compose also requires an API key and will fail before starting the API if it is not provided:
-
+### Create an admin
+Admin accounts are bootstrapped from the server rather than exposed through public registration:
 ```bash
-API_KEY='replace-with-a-long-random-secret' docker compose up --build
+node src/scripts/createAdmin.js "System Admin" admin@example.com "strong-admin-password"
 ```
+
+Never commit `.env`, passwords or JWT secrets.
+
+## API documentation
+After starting the application:
+- Swagger UI: `http://localhost:5000/api-docs`
+- OpenAPI JSON: `http://localhost:5000/api-docs.json`
 
 ## Endpoints
+### Auth
+- `POST /api/v1/auth/register` — creates a teacher account
+- `POST /api/v1/auth/login` — returns a JWT
+
 ### Students
-- `POST /api/v1/students`
-- `GET /api/v1/students` — supports `?department=`, `?semester=`, `?page=`, `?limit=` (maximum 100)
-- `GET /api/v1/students/:id`
-- `PATCH /api/v1/students/:id` — only profile fields are updateable; `studentId` is immutable
-- `DELETE /api/v1/students/:id` — also removes related attendance and academic records
+- `POST /api/v1/students` — teacher/admin
+- `GET /api/v1/students` — public read
+- `GET /api/v1/students/:id` — public read
+- `PATCH /api/v1/students/:id` — teacher/admin
+- `DELETE /api/v1/students/:id` — admin only; cascades related records
+- `GET /api/v1/students/:id/attendance-summary`
+- `GET /api/v1/students/:id/academic-summary`
 
 ### Attendance
-- `POST /api/v1/attendance` — requires an existing student; date is normalized to UTC midnight
-- `GET /api/v1/attendance`
-- `GET /api/v1/attendance/student/:studentId`
-- `PATCH /api/v1/attendance/:id`
-- `DELETE /api/v1/attendance/:id`
+- `POST /api/v1/attendance` — teacher/admin
+- `GET /api/v1/attendance` — public read
+- `GET /api/v1/attendance/student/:studentId` — public read
+- `PATCH /api/v1/attendance/:id` — teacher/admin
+- `DELETE /api/v1/attendance/:id` — admin only
 
 ### Academic records
-- `POST /api/v1/academics` — requires an existing student
-- `GET /api/v1/academics`
-- `GET /api/v1/academics/student/:studentId`
-- `PATCH /api/v1/academics/:id`
-- `DELETE /api/v1/academics/:id`
+- `POST /api/v1/academics` — teacher/admin
+- `GET /api/v1/academics` — public read
+- `GET /api/v1/academics/student/:studentId` — public read
+- `PATCH /api/v1/academics/:id` — teacher/admin
+- `DELETE /api/v1/academics/:id` — admin only
 
 ### Health
-`GET /health` returns `200` with `database: connected` when MongoDB is healthy, otherwise `503` with `database: disconnected`.
+`GET /health` returns `200` with database status `connected` or `503` with database status `disconnected`.
 
-## Testing
+## Docker Compose
+A JWT secret is required before the production container starts:
+```bash
+JWT_SECRET='replace-with-a-long-random-secret-at-least-32-characters' docker compose up --build
+```
+
+## Testing and CI
 ```bash
 npm test
 npm run lint
 ```
 
-The test suite covers authentication, routing, database-aware health checks, validation and invalid resource IDs without requiring a live MongoDB server.
+GitHub Actions runs linting, tests and a Docker build on pushes and pull requests to `main`.
 
 ## AWS deployment
-The application is AWS-ready for deployment on an EC2 Linux instance with MongoDB Atlas as the managed database. Set production environment variables on the server, install Node.js 20+, run `npm install`, and start with a process manager such as PM2. Nginx can sit in front as a reverse proxy with TLS.
+The application is AWS-ready for deployment on an EC2 Linux instance with MongoDB Atlas as the managed database. Set production environment variables on the server, install Node.js 20+, run `npm install`, and use PM2 or another process manager. Nginx can sit in front as a reverse proxy with TLS.
 
-GitHub Actions runs linting, the automated test suite and a Docker build on pushes and pull requests to `main`.
-
-## Resume relevance
-Demonstrates REST API development, MVC architecture, MongoDB data modeling, API authentication, automated testing, rate limiting, environment-based configuration, referential integrity, secure update handling, Docker and cloud deployment readiness.
+## Scope
+This is a portfolio/learning project, not a hardened production service. It demonstrates authentication, authorization, validation, observability, API documentation, data integrity and cloud-ready backend practices without claiming enterprise-level security or availability.
