@@ -2,20 +2,22 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isTest = nodeEnv === 'test';
+
 const env = {
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   port: Number(process.env.PORT) || 5000,
-  mongoUri: process.env.MONGODB_URI,
+  mongoUri: process.env.MONGODB_URI || (isTest ? 'mongodb://127.0.0.1:27017/student_management_test' : ''),
   corsOrigin: process.env.CORS_ORIGIN || '*',
-  apiKey: process.env.API_KEY || ''
+  jwtSecret: process.env.JWT_SECRET || (isTest ? 'test-only-jwt-secret-change-me' : ''),
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '2h'
 };
 
-if (!env.mongoUri) {
-  throw new Error('MONGODB_URI is required');
-}
-
-if (env.nodeEnv === 'production' && !env.apiKey) {
-  throw new Error('API_KEY is required in production');
+if (!env.mongoUri) throw new Error('MONGODB_URI is required');
+if (!env.jwtSecret) throw new Error('JWT_SECRET is required');
+if (nodeEnv === 'production' && env.jwtSecret.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters in production');
 }
 
 export default env;
