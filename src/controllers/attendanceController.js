@@ -3,13 +3,6 @@ import Student from '../models/Student.js';
 
 const UPDATABLE_FIELDS = ['date', 'status'];
 
-function normalizeDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
-}
-
 function pickFields(body, fields) {
   return Object.fromEntries(Object.entries(body).filter(([key]) => fields.includes(key)));
 }
@@ -18,10 +11,7 @@ export async function createAttendance(req, res) {
   const student = await Student.exists({ _id: req.body.student });
   if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-  const date = normalizeDate(req.body.date);
-  if (!date) return res.status(400).json({ success: false, message: 'Invalid attendance date' });
-
-  const record = await Attendance.create({ student: req.body.student, date, status: req.body.status });
+  const record = await Attendance.create(req.body);
   res.status(201).json({ success: true, data: record });
 }
 
@@ -32,13 +22,11 @@ export async function getAttendance(req, res) {
 }
 
 export async function updateAttendance(req, res) {
-  const updates = pickFields(req.body, UPDATABLE_FIELDS);
-  if (updates.date !== undefined) {
-    updates.date = normalizeDate(updates.date);
-    if (!updates.date) return res.status(400).json({ success: false, message: 'Invalid attendance date' });
-  }
-  const record = await Attendance.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+  const record = await Attendance.findById(req.params.id);
   if (!record) return res.status(404).json({ success: false, message: 'Attendance record not found' });
+
+  Object.assign(record, pickFields(req.body, UPDATABLE_FIELDS));
+  await record.save();
   res.json({ success: true, data: record });
 }
 
