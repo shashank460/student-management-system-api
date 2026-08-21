@@ -1,3 +1,13 @@
+function replaceRequestValue(req, source, value) {
+  if (source !== 'query') {
+    req[source] = value;
+    return;
+  }
+
+  for (const key of Object.keys(req.query)) delete req.query[key];
+  Object.assign(req.query, value);
+}
+
 export function validate({ body, params, query } = {}) {
   return (req, res, next) => {
     const errors = [];
@@ -11,7 +21,7 @@ export function validate({ body, params, query } = {}) {
           message: issue.message
         })));
       } else {
-        req[source] = result.data;
+        replaceRequestValue(req, source, result.data);
       }
     }
     if (errors.length) return res.status(400).json({ success: false, message: 'Request validation failed', errors });
