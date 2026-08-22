@@ -9,20 +9,10 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:8
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
     env:
       NODE_ENV: test
-      MONGODB_URI: mongodb://127.0.0.1:27017/student_management_test
       JWT_SECRET: test-only-jwt-secret-change-me-please-123456
+      REFRESH_TOKEN_SECRET: test-only-refresh-secret-change-me-please-123456
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,11 +20,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - name: Install dependencies
         run: npm install
       - name: Lint
         run: npm run lint
-      - name: Run unit and integration tests
-        run: npm test
+      - name: Run unit and integration tests with coverage
+        run: npm run test:coverage
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
       - name: Build Docker image
         run: docker build -t student-management-system-api:ci .
